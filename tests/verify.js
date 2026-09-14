@@ -35,9 +35,12 @@ async function runTests() {
     const externalLinkRegex = /<link[^>]+href=["']https?:\/\//i;
     assert.ok(!externalLinkRegex.test(html), 'index.html 中不得包含外部 http/https link 标签');
 
-    // 检查是否有外部 script 标签
-    const externalScriptRegex = /<script[^>]+src=["']https?:\/\//i;
-    assert.ok(!externalScriptRegex.test(html), 'index.html 中不得包含外部 http/https script 标签');
+    // 检查是否有未授权外部 script 标签（除用户显式配置的统计脚本外，禁止引入任何外部第三方库或CDN）
+    const scriptSrcMatches = [...html.matchAll(/<script[^>]+src=["'](https?:\/\/[^"']+)["']/gi)].map(m => m[1]);
+    const unauthorizedScripts = scriptSrcMatches.filter(url => !url.startsWith('https://u.xiaovi.de/'));
+    assert.strictEqual(unauthorizedScripts.length, 0, `不得包含未授权外部脚本: ${unauthorizedScripts.join(', ')}`);
+    assert.ok(html.includes('https://u.xiaovi.de/script.js'), '必须包含用户配置的统计脚本');
+    assert.ok(html.includes('rel="icon"'), '必须包含网站图标 link');
 
     // 检查 CSS 中不得有 @import url(http...)
     const externalCssImport = /@import\s+(url\(['"]?https?:|['"]https?:)/i;
