@@ -202,6 +202,33 @@ body {
   color: var(--bg-dark);
 }
 
+.github-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-gold);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.github-link-btn:hover {
+  background: rgba(200, 170, 110, 0.18);
+  border-color: var(--gold-primary);
+  color: var(--gold-light);
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.25);
+}
+
+.github-link-btn svg {
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
 .refresh-btn {
   background: rgba(200, 170, 110, 0.15);
   border: 1px solid var(--gold-primary);
