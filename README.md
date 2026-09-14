@@ -3,6 +3,8 @@
 基于 **Fastify** 框架构建的高性能英雄联盟皮肤查询与下载 Web 服务。
 资源源自开源项目 [Alban1911/LeagueSkins](https://github.com/Alban1911/LeagueSkins)。
 
+> 🌐 **在线体验地址**: [https://lol.xiaovi.de/](https://lol.xiaovi.de/)
+
 ## 🌟 核心特性
 
 1. **智能英雄联想搜索**：

@@ -1,7 +1,7 @@
 {
   "name": "lol-skins-download",
   "version": "1.0.0",
-  "description": "",
+  "description": "英雄联盟皮肤查询与下载 Web 服务 (在线体验: https://lol.xiaovi.de/)",
   "type": "module",
   "main": "server.js",
   "scripts": {
