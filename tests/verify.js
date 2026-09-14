@@ -145,6 +145,8 @@ async function runTests() {
     assert.ok(html.includes('lastUpdatedText'), '必须包含最后更新时间展示元素');
     assert.ok(html.includes('skinsGrid'), '必须包含皮肤网格容器');
     assert.ok(!html.includes('id="refreshBtn"'), '页面不得包含客户端检查更新按钮');
+    assert.ok(!html.includes('代理就绪'), '页面不得包含“代理就绪”描述');
+    assert.ok(!html.includes('所有静态资源均已通过本地服务端自建代理与缓存'), '页面不得暴露服务端代理与缓存技术细节描述');
   });
 
   // 9. 验证客户端禁止触发同步接口
