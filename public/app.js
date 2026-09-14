@@ -61,8 +61,23 @@
     await fetchInfo();
     await fetchChampions();
     
-    // 默认展示亚索 (key: 157)，若无则展示第一位英雄
-    const defaultChamp = state.champions.find(c => c.key === '157') || state.champions[0];
+    // 检查 URL 是否携带 ?champion=157 或 ?champion=yasuo 参数实现直达与分享
+    let targetChamp = null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const champParam = urlParams.get('champion');
+      if (champParam) {
+        const p = champParam.trim().toLowerCase();
+        targetChamp = state.champions.find(c => 
+          String(c.key) === p || 
+          c.id.toLowerCase() === p || 
+          c.name === p
+        );
+      }
+    } catch (e) {}
+
+    // 默认展示目标英雄或亚索 (key: 157)，若无则展示第一位英雄
+    const defaultChamp = targetChamp || state.champions.find(c => c.key === '157') || state.champions[0];
     if (defaultChamp) {
       selectChampion(defaultChamp.key);
     }
@@ -112,6 +127,10 @@
         tab.classList.add('active');
         state.filterType = tab.dataset.filter;
         renderSkins();
+        trackEvent('filter_change', {
+          champion: state.selectedChampion?.name || '',
+          filter: tab.dataset.filter
+        });
       }
     });
 
@@ -120,6 +139,23 @@
       state.subSearchKeyword = e.target.value.trim().toLowerCase();
       renderSkins();
     });
+
+    // 挂载管理工具下载点击打点
+    const ltkBtn = document.getElementById('ltkDownloadBtn');
+    if (ltkBtn) {
+      ltkBtn.addEventListener('click', () => {
+        const ver = document.getElementById('ltkVersionText')?.textContent || 'LTK Manager';
+        trackEvent('tool_download', { tool: 'ltk-manager', version: ver });
+      });
+    }
+
+    // GitHub 仓库访问点击打点
+    const ghBtn = document.querySelector('.github-link-btn');
+    if (ghBtn) {
+      ghBtn.addEventListener('click', () => {
+        trackEvent('github_click', { target: 'repository' });
+      });
+    }
   }
 
   /**
@@ -190,7 +226,10 @@
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
       searchChampions(val);
-    }, 120);
+      if (val.length >= 2) {
+        trackEvent('search_query', { query: val });
+      }
+    }, 350);
   }
 
   /**
@@ -399,6 +438,21 @@
 
       // 渲染皮肤卡片
       renderSkins();
+
+      // 友好更新 URL 参数方便分享与直达 (?champion=157)
+      try {
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('champion', champ.key);
+        window.history.replaceState({ championKey: champ.key }, '', newUrl.toString());
+      } catch (e) {}
+
+      // 上报英雄全量皮肤查看事件
+      trackEvent('champion_view', {
+        champion_key: String(champ.key),
+        champion_name: champ.name,
+        champion_title: champ.title,
+        total_skins: champ.totalSkins || 0
+      });
     } catch (err) {
       console.error('加载英雄失败:', err);
       showToast('加载皮肤数据失败，请重试', 'error');
@@ -551,6 +605,15 @@
       link.click();
       document.body.removeChild(link);
 
+      // 上报核心转化事件：皮肤文件下载
+      trackEvent('skin_download', {
+        champion: state.selectedChampion?.name || '',
+        champion_key: String(state.selectedChampion?.key || ''),
+        skin_name: skinName || '',
+        file_name: filePath.split('/').pop() || 'skin.fantome',
+        file_path: filePath
+      });
+
       // 视觉状态变为成功
       setTimeout(() => {
         btn.classList.remove('downloading');
@@ -619,6 +682,19 @@
         if (toast.parentNode) toast.parentNode.removeChild(toast);
       }, 300);
     }, 3200);
+  }
+
+  /**
+   * 安全的 Umami 自定义事件上报辅助函数 (防崩溃降级机制)
+   */
+  function trackEvent(eventName, eventData = {}) {
+    if (typeof window !== 'undefined' && window.umami && typeof window.umami.track === 'function') {
+      try {
+        window.umami.track(eventName, eventData);
+      } catch (err) {
+        console.debug('[Umami] 事件上报跳过:', err.message);
+      }
+    }
   }
 
   // 启动应用

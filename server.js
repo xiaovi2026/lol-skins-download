@@ -4,6 +4,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyCors from '@fastify/cors';
 import apiRoutes from './src/routes/api.js';
+import statsRoutes from './src/routes/stats.js';
 import { catalogService } from './src/services/catalogService.js';
 import { autoUpdater } from './src/services/autoUpdater.js';
 
@@ -34,8 +35,9 @@ await fastify.register(fastifyStatic, {
   decorateReply: false
 });
 
-// 注册 API 路由
+// 注册 API 路由与同源统计代理路由
 await fastify.register(apiRoutes, { prefix: '/api' });
+await fastify.register(statsRoutes, { prefix: '/stats' });
 
 // 解析命令行参数 (--host, --port, --local)
 const args = process.argv.slice(2);

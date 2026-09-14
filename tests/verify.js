@@ -35,11 +35,12 @@ async function runTests() {
     const externalLinkRegex = /<link[^>]+href=["']https?:\/\//i;
     assert.ok(!externalLinkRegex.test(html), 'index.html 中不得包含外部 http/https link 标签');
 
-    // 检查是否有未授权外部 script 标签（除用户显式配置的统计脚本外，禁止引入任何外部第三方库或CDN）
+    // 检查是否有外部 script 标签（因采用 /stats/script.js 同源第一方代理，页面中不得存在任何外部第三方的 script 标签）
     const scriptSrcMatches = [...html.matchAll(/<script[^>]+src=["'](https?:\/\/[^"']+)["']/gi)].map(m => m[1]);
-    const unauthorizedScripts = scriptSrcMatches.filter(url => !url.startsWith('https://u.xiaovi.de/'));
-    assert.strictEqual(unauthorizedScripts.length, 0, `不得包含未授权外部脚本: ${unauthorizedScripts.join(', ')}`);
-    assert.ok(html.includes('https://u.xiaovi.de/script.js'), '必须包含用户配置的统计脚本');
+    assert.strictEqual(scriptSrcMatches.length, 0, `index.html 中不得包含外部 http/https script: ${scriptSrcMatches.join(', ')}`);
+    assert.ok(html.includes('/stats/script.js'), '必须包含同源反代统计脚本 /stats/script.js');
+    assert.ok(html.includes('data-website-id="2e1dbf68-10c3-4605-8b98-d9da96a655e3"'), '必须包含用户 website-id');
+    assert.ok(html.includes('data-host-url="/stats"'), '必须包含同源 host-url 配置');
     assert.ok(html.includes('rel="icon"'), '必须包含网站图标 link');
 
     // 检查 CSS 中不得有 @import url(http...)
@@ -238,6 +239,34 @@ async function runTests() {
     // 尝试伪造不存在的工具发布资产
     const resEvilTool = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=evil_malware.exe`);
     assert.strictEqual(resEvilTool.status, 404, '非 Release 发布资产应直接返回 404，避免向 GitHub 盲目发包');
+  });
+
+  // 16. 验证 Umami 同源第一方统计代理通道 (防 AdBlock 广告拦截器)
+  await test('Umami 同源反向代理通道验证 (防 AdBlocker)', async () => {
+    // 验证客户端脚本同源拉取
+    const resScript = await fetch(`${BASE_URL}/stats/script.js`);
+    assert.strictEqual(resScript.status, 200, 'stats/script.js 代理应返回 200 OK');
+    const scriptType = resScript.headers.get('content-type');
+    assert.ok(scriptType.includes('javascript'), 'Content-Type 必须为 JavaScript');
+    const scriptContent = await resScript.text();
+    assert.ok(scriptContent.length > 1000, '脚本内容体积应正常 (> 1KB)');
+
+    // 验证事件上报通道 (向 /stats/api/send 发送测试 ping)
+    const resSend = await fetch(`${BASE_URL}/stats/api/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'event',
+        payload: {
+          website: '2e1dbf68-10c3-4605-8b98-d9da96a655e3',
+          name: 'verify_test_ping',
+          data: { test: true }
+        }
+      })
+    });
+    assert.strictEqual(resSend.status, 200, '/stats/api/send 代理应成功转发');
+    const sendJson = await resSend.json();
+    assert.ok(sendJson.beep === 'boop' || sendJson.ok !== undefined, 'Umami 应返回确认响应');
   });
 
   console.log(`\n================================`);
