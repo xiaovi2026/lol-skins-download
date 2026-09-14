@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英雄联盟皮肤查询与下载服务</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- 背景特效光晕 -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="app-container">
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <div class="logo-icon">
+          <!-- Hextech Crest SVG -->
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">LOL SKINS HUB</h1>
+          <span class="brand-subtitle">英雄联盟皮肤资源查询与下载</span>
+        </div>
+      </div>
+
+      <!-- 更新时间与状态横幅 -->
+      <div class="nav-status-group">
+        <div class="status-badge" id="updateStatusBadge" title="GitHub 源仓库 Alban1911/LeagueSkins 最新更新时间">
+          <svg class="status-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <div class="status-content">
+            <span class="status-label">资源更新时间 (北京时间)</span>
+            <span class="status-time" id="lastUpdatedText">载入中...</span>
+          </div>
+          <button class="refresh-btn" id="refreshBtn" title="检查与同步最新资源">
+            <svg class="refresh-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <span class="refresh-text">检查更新</span>
+          </button>
+        </div>
+
+        <div class="stats-counter" id="globalStats">
+          <span class="stat-pill"><strong id="champCount">173</strong> 位英雄</span>
+          <span class="stat-pill"><strong id="skinCount">10,000+</strong> 皮肤/炫彩</span>
+          <span class="stat-pill online-pill"><span class="dot"></span> 代理就绪</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 搜索交互区域 -->
+    <section class="hero-section">
+      <div class="hero-header">
+        <h2 class="hero-title">查找英雄与全量皮肤</h2>
+        <p class="hero-desc">支持输入英雄中文名称、称号、拼音全拼或简拼（如“亚索”、“ys”、“疾风剑豪”、“盲僧”、“Annie”）</p>
+      </div>
+
+      <div class="search-box-wrapper">
+        <div class="search-input-container">
+          <div class="search-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <input 
+            type="text" 
+            id="championSearchInput" 
+            class="search-input" 
+            placeholder="输入英雄名称 / 称号 / 拼音缩写 (例如: 亚索, ys, 盲僧, 劫)..." 
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button type="button" class="clear-search-btn hidden" id="clearSearchBtn" title="清空输入">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 联想下拉菜单 -->
+        <div class="autocomplete-dropdown hidden" id="autocompleteDropdown">
+          <div class="dropdown-header">
+            <span id="dropdownCountText">匹配到 0 位英雄</span>
+            <span class="dropdown-hint">支持 ↑ ↓ 方向键与 Enter 键选择</span>
+          </div>
+          <ul class="dropdown-list" id="dropdownList">
+            <!-- 动态填充 -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- 快捷热门英雄标签 -->
+      <div class="quick-tags-wrapper">
+        <span class="tags-label">热门快捷选择:</span>
+        <div class="quick-tags" id="quickTags">
+          <button class="tag-btn" data-key="157">亚索 (Yasuo)</button>
+          <button class="tag-btn" data-key="64">李青 (盲僧)</button>
+          <button class="tag-btn" data-key="238">劫 (Zed)</button>
+          <button class="tag-btn" data-key="145">卡莎 (Kai'Sa)</button>
+          <button class="tag-btn" data-key="103">阿狸 (Ahri)</button>
+          <button class="tag-btn" data-key="1">安妮 (Annie)</button>
+          <button class="tag-btn" data-key="222">金克丝 (Jinx)</button>
+          <button class="tag-btn" data-key="777">永恩 (Yone)</button>
+          <button class="tag-btn" data-key="17">提莫 (Teemo)</button>
+          <button class="tag-btn" data-key="67">薇恩 (Vayne)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 选中的英雄展示区 (默认选中亚索或空状态) -->
+    <main class="content-main" id="contentMain">
+      <!-- 英雄概览条 -->
+      <section class="champion-banner" id="championBanner">
+        <div class="champ-profile">
+          <div class="champ-avatar-frame">
+            <img id="bannerAvatar" class="champ-avatar" src="" alt="英雄头像">
+          </div>
+          <div class="champ-info">
+            <div class="champ-title-row">
+              <span class="champ-title" id="bannerTitle">疾风剑豪</span>
+              <span class="champ-key-badge" id="bannerKey">#157</span>
+            </div>
+            <h2 class="champ-name" id="bannerName">亚索</h2>
+            <div class="champ-meta">
+              <span class="meta-tag" id="bannerEnName">Yasuo</span>
+              <span class="meta-dot">•</span>
+              <span class="meta-stat" id="bannerStats">收录 97 款皮肤 (96 个下载文件)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 过滤器和二次搜索 -->
+        <div class="filter-toolbar">
+          <div class="filter-tabs" id="skinFilterTabs">
+            <button class="filter-tab active" data-filter="all">全部 (<span id="countAll">0</span>)</button>
+            <button class="filter-tab" data-filter="base">常规原版 (<span id="countBase">0</span>)</button>
+            <button class="filter-tab" data-filter="chroma">炫彩皮肤 (<span id="countChroma">0</span>)</button>
+          </div>
+          <div class="filter-search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="skinSubSearchInput" placeholder="在此英雄的皮肤中筛选...">
+          </div>
+        </div>
+      </section>
+
+      <!-- 皮肤卡片网格 -->
+      <section class="skins-section">
+        <div class="skins-grid" id="skinsGrid">
+          <!-- 动态渲染卡片 -->
+        </div>
+
+        <!-- 无结果占位 -->
+        <div class="empty-state hidden" id="emptySkinsState">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="8" y1="15" x2="16" y2="15"></line>
+            <line x1="9" y1="9" x2="9.01" y2="9"></line>
+            <line x1="15" y1="9" x2="15.01" y2="9"></line>
+          </svg>
+          <p class="empty-title">未找到匹配的皮肤</p>
+          <p class="empty-desc">请尝试修改筛选条件或关键词</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部说明 -->
+    <footer class="footer">
+      <div class="footer-content">
+        <p>资源数据来源: <a href="https://github.com/Alban1911/LeagueSkins" target="_blank" rel="noopener">Alban1911/LeagueSkins</a> | 官方立绘数据: Riot Games Data Dragon</p>
+        <p class="footer-notice">本工具所提供的皮肤资源仅供交流学习使用，所有静态资源均已通过本地服务端自建代理与缓存。</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- 全局通知 Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
