@@ -140,6 +140,22 @@
     } catch (err) {
       console.error('获取服务信息失败:', err);
     }
+
+    // 动态获取 LTK Manager 挂载工具最新版本信息
+    try {
+      const ltkRes = await fetch('/api/tools/ltk-manager');
+      if (ltkRes.ok) {
+        const ltkData = await ltkRes.json();
+        const ltkTextEl = document.getElementById('ltkVersionText');
+        const ltkBtnEl = document.getElementById('ltkDownloadBtn');
+        if (ltkTextEl && ltkData.tag) {
+          ltkTextEl.textContent = `LTK Manager ${ltkData.tag}`;
+        }
+        if (ltkBtnEl && ltkData.primaryAsset) {
+          ltkBtnEl.title = `点击下载最新版挂载工具: ${ltkData.primaryAsset.name} (${ltkData.primaryAsset.formattedSize}) | 发布于: ${ltkData.publishedAtBeijing}`;
+        }
+      }
+    } catch (e) {}
   }
 
   /**

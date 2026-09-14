@@ -1,6 +1,7 @@
 import { catalogService } from '../services/catalogService.js';
 import { proxyService } from '../services/proxyService.js';
 import { autoUpdater } from '../services/autoUpdater.js';
+import { toolService } from '../services/toolService.js';
 
 export default async function apiRoutes(fastify, options) {
   // 1. 获取基本信息与北京时间更新时间
@@ -77,6 +78,33 @@ export default async function apiRoutes(fastify, options) {
     } catch (err) {
       reply.status(404);
       return { error: err.message };
+    }
+  });
+  fastify.get('/tools/ltk-manager', async (request, reply) => {
+    try {
+      const release = await toolService.getLatestRelease();
+      return release;
+    } catch (err) {
+      reply.status(500);
+      return { error: err.message || '获取 LTK Manager 版本失败' };
+    }
+  });
+
+  // 8. 代理下载 LTK Manager 安装包/资产文件
+  fastify.get('/tools/ltk-manager/download', async (request, reply) => {
+    const { filename } = request.query;
+    try {
+      const asset = await toolService.downloadAsset(filename);
+      reply.header('Content-Type', 'application/octet-stream');
+      reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(asset.filename)}"`);
+      if (asset.size) {
+        reply.header('Content-Length', asset.size);
+      }
+      return reply.send(asset.stream);
+    } catch (err) {
+      request.log.error(err);
+      reply.status(500);
+      return { error: err.message || '下载 LTK Manager 失败' };
     }
   });
 }

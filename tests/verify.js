@@ -181,6 +181,30 @@ async function runTests() {
     assert.strictEqual(buf.byteLength, 5094, '应自动重新拉取远端真实文件 (5094 bytes)，而非错误的旧缓存');
   });
 
+  // 12. 验证 LTK Manager 代理版本信息接口
+  await test('GET /api/tools/ltk-manager (获取最新挂载器版本)', async () => {
+    const res = await fetch(`${BASE_URL}/api/tools/ltk-manager`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.tag, '必须包含 tag 字段');
+    assert.ok(data.publishedAtBeijing, '必须包含北京时间');
+    assert.ok(data.primaryAsset, '必须包含默认主要下载文件');
+    assert.ok(data.primaryAsset.name.endsWith('.exe'), '主要文件应为 Windows 可执行程序');
+    console.log(`   [当前最新 LTK Manager: ${data.name} | 文件: ${data.primaryAsset.name}]`);
+  });
+
+  // 13. 验证 LTK Manager 代理下载接口
+  await test('GET /api/tools/ltk-manager/download (下载代理)', async () => {
+    // 代理下载小体积资产文件测试代理链路与持久化缓存
+    const res = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=latest.json`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('content-type'), 'application/octet-stream');
+    const disposition = res.headers.get('content-disposition');
+    assert.ok(disposition && disposition.includes('latest.json'), 'Header 应包含 filename');
+    const buf = await res.arrayBuffer();
+    assert.ok(buf.byteLength > 100, '下载内容体积应 > 100 bytes');
+  });
+
   console.log(`\n================================`);
   console.log(`🎯 测试结果: ${passed} 项通过, ${failed} 项失败`);
   console.log(`================================\n`);

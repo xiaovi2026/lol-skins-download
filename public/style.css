@@ -172,6 +172,36 @@ body {
   font-weight: 600;
 }
 
+.tool-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(10, 200, 185, 0.15), rgba(3, 151, 171, 0.08));
+  border: 1px solid var(--blue-magic);
+  color: var(--gold-light);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(10, 200, 185, 0.1);
+}
+
+.tool-download-btn:hover {
+  background: var(--blue-magic);
+  color: var(--bg-dark);
+  box-shadow: var(--shadow-magic);
+}
+
+.tool-download-btn strong {
+  color: var(--blue-magic);
+}
+
+.tool-download-btn:hover strong {
+  color: var(--bg-dark);
+}
+
 .refresh-btn {
   background: rgba(200, 170, 110, 0.15);
   border: 1px solid var(--gold-primary);

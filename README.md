@@ -64,6 +64,8 @@ npm test
 | `/api/skins/download?path=...` | GET | 代理下载皮肤 `.fantome` 文件（自动附带文件名 Header） |
 | `/api/proxy/champion-icon/:key` | GET | 代理并本地缓存英雄方形头像（PNG） |
 | `/api/proxy/skin-image/:key/:skinId`| GET | 代理并本地缓存皮肤竖版立绘/加载图（JPEG/PNG） |
+| `/api/tools/ltk-manager` | GET | 获取最新版本 LTK Manager 挂载工具发布信息（Tag、时间、资产列表） |
+| `/api/tools/ltk-manager/download` | GET | 代理下载 LTK Manager 客户端安装包（EXE/MSI，服务端持久化缓存） |
 
 > **注**：为保障内网与服务端安全，禁止客户端随意触发源仓库同步。如需更新底层皮肤数据，请在服务端执行 `npm run build:data`。
 
