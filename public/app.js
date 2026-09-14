@@ -399,9 +399,6 @@
 
       // 渲染皮肤卡片
       renderSkins();
-
-      // 平滑滚动至内容区
-      elements.bannerAvatar.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       console.error('加载英雄失败:', err);
       showToast('加载皮肤数据失败，请重试', 'error');
