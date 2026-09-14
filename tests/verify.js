@@ -162,6 +162,25 @@ async function runTests() {
     console.log(`   [当前解析到的官方最新版本: ${version}]`);
   });
 
+  // 11. 验证智能缓存失效：文件变更 (Git Blob SHA 校验) 自动识别并重新下载
+  await test('智能缓存失效机制：源文件变更时自动识别 SHA 差异并重新拉取', async () => {
+    const testPath = 'skins/1/1001/1001.fantome';
+    const cachedFile = path.join(ROOT_DIR, 'cache', 'skins', testPath);
+    
+    // 确保已有有效缓存
+    await fetch(`${BASE_URL}/api/skins/download?path=${testPath}`);
+    assert.ok(fs.existsSync(cachedFile), '测试前缓存文件必须存在');
+
+    // 模拟旧文件过期/作者发布了新补丁（文件内容被修改）
+    fs.writeFileSync(cachedFile, Buffer.from('stale outdated content'));
+
+    // 再次请求下载，服务端应检测到 SHA 变动，自动清理旧缓存并重新拉取真实文件
+    const res = await fetch(`${BASE_URL}/api/skins/download?path=${testPath}`);
+    assert.strictEqual(res.status, 200);
+    const buf = await res.arrayBuffer();
+    assert.strictEqual(buf.byteLength, 5094, '应自动重新拉取远端真实文件 (5094 bytes)，而非错误的旧缓存');
+  });
+
   console.log(`\n================================`);
   console.log(`🎯 测试结果: ${passed} 项通过, ${failed} 项失败`);
   console.log(`================================\n`);

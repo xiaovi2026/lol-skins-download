@@ -12,6 +12,7 @@ class CatalogService {
     this.catalog = null;
     this.championsIndex = [];
     this.championsMap = new Map();
+    this.filesMap = new Map();
     this.loadCatalog();
   }
 
@@ -33,10 +34,19 @@ class CatalogService {
   buildIndexes() {
     if (!this.catalog?.champions) return;
     this.championsMap.clear();
+    this.filesMap.clear();
 
     // 预备给下拉检索列表返回的轻量级英雄摘要列表
     this.championsIndex = this.catalog.champions.map(c => {
       this.championsMap.set(c.key, c);
+
+      // 索引每个皮肤文件以支持 SHA 与版本变更精确校验
+      for (const s of c.skins || []) {
+        for (const f of s.files || []) {
+          this.filesMap.set(f.path, f);
+        }
+      }
+
       return {
         key: c.key,
         id: c.id,
@@ -50,6 +60,10 @@ class CatalogService {
         totalFiles: c.totalFiles
       };
     });
+  }
+
+  getFileMeta(filePath) {
+    return this.filesMap.get(filePath) || null;
   }
 
   getInfo(autoUpdateStatus = null) {

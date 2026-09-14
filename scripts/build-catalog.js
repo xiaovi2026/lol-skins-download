@@ -251,11 +251,13 @@ export async function buildCatalog() {
       const item = skinMap.get(skinId);
       if (filename.endsWith('.png')) {
         item.previewPng = p;
+        item.previewSha = blob.sha;
       } else if (filename.endsWith('.fantome') || filename.endsWith('.zip')) {
         item.files.push({
           path: p,
           filename,
           size: blob.size,
+          sha: blob.sha,
           category
         });
       }
@@ -265,17 +267,19 @@ export async function buildCatalog() {
       const skinId = parts[3];
       const filename = parts[4];
       if (!skinMap.has(skinId)) {
-        skinMap.set(skinId, { files: [], previewPng: null, parentSkinId });
+        skinMap.set(skinId, { files: [], previewPng: null, previewSha: null, parentSkinId });
       }
       const item = skinMap.get(skinId);
       item.parentSkinId = parentSkinId;
       if (filename.endsWith('.png')) {
         item.previewPng = p;
+        item.previewSha = blob.sha;
       } else if (filename.endsWith('.fantome') || filename.endsWith('.zip')) {
         item.files.push({
           path: p,
           filename,
           size: blob.size,
+          sha: blob.sha,
           category
         });
       }
@@ -344,6 +348,7 @@ export async function buildCatalog() {
         isChroma,
         parentSkinId: fileData.parentSkinId || null,
         previewPng: fileData.previewPng || null,
+        previewSha: fileData.previewSha || null,
         files: fileData.files
       };
 
