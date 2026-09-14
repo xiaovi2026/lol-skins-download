@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { catalogService } from './catalogService.js';
+import { getLatestDdragonVersion } from './ddragon.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,7 +35,8 @@ class ProxyService {
       throw new Error(`未找到英雄 #${champKey}`);
     }
 
-    const remoteUrl = champ.avatar || `https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/${champ.id}.png`;
+    const ddragonVersion = await getLatestDdragonVersion();
+    const remoteUrl = champ.avatar || `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${champ.id}.png`;
     const res = await fetch(remoteUrl);
     if (!res.ok) {
       throw new Error(`获取头像失败: HTTP ${res.status}`);

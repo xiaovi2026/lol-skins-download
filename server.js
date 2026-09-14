@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import fastifyCors from '@fastify/cors';
 import apiRoutes from './src/routes/api.js';
 import { catalogService } from './src/services/catalogService.js';
+import { autoUpdater } from './src/services/autoUpdater.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 try {
   await fastify.listen({ port: PORT, host: HOST });
+  
+  // 启动后台定时自动检查更新 (每 1 小时检查一次)
+  autoUpdater.start(60 * 60 * 1000);
+
   const info = catalogService.getInfo();
   console.log(`
 ======================================================

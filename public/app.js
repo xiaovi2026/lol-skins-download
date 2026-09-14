@@ -23,7 +23,6 @@
     lastUpdatedText: document.getElementById('lastUpdatedText'),
     champCount: document.getElementById('champCount'),
     skinCount: document.getElementById('skinCount'),
-    refreshBtn: document.getElementById('refreshBtn'),
 
     // 搜索与下拉
     searchInput: document.getElementById('championSearchInput'),
@@ -121,9 +120,6 @@
       state.subSearchKeyword = e.target.value.trim().toLowerCase();
       renderSkins();
     });
-
-    // 检查更新按钮
-    elements.refreshBtn.addEventListener('click', handleSync);
   }
 
   /**
@@ -566,36 +562,7 @@
     }
   }
 
-  /**
-   * 主动检查与同步最新资源
-   */
-  async function handleSync() {
-    if (elements.refreshBtn.classList.contains('spinning')) return;
-    elements.refreshBtn.classList.add('spinning');
-    showToast('正在从 GitHub 检查皮肤仓库最新数据...', 'info');
 
-    try {
-      const res = await fetch('/api/sync', { method: 'POST' });
-      const data = await res.json();
-      if (data.success && data.info) {
-        elements.lastUpdatedText.textContent = data.info.lastUpdatedBeijing;
-        elements.champCount.textContent = data.info.stats.totalChampions || '173';
-        elements.skinCount.textContent = (data.info.stats.totalSkins || '9,000+').toLocaleString();
-        await fetchChampions();
-        if (state.selectedChampion) {
-          await selectChampion(state.selectedChampion.key);
-        }
-        showToast(`同步成功！更新时间: ${data.info.lastUpdatedBeijing}`, 'success');
-      } else {
-        throw new Error(data.error || '同步失败');
-      }
-    } catch (err) {
-      console.error('同步失败:', err);
-      showToast(`同步失败: ${err.message}`, 'error');
-    } finally {
-      elements.refreshBtn.classList.remove('spinning');
-    }
-  }
 
   /**
    * 格式化文件大小

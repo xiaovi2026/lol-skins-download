@@ -52,7 +52,7 @@ class CatalogService {
     });
   }
 
-  getInfo() {
+  getInfo(autoUpdateStatus = null) {
     return {
       version: this.catalog?.version || '1.0.0',
       lastUpdatedBeijing: this.catalog?.lastUpdatedBeijing || '2026-09-10 18:31:44',
@@ -61,7 +61,8 @@ class CatalogService {
         totalChampions: this.championsIndex.length,
         totalSkins: 0,
         totalFiles: 0
-      }
+      },
+      autoUpdate: autoUpdateStatus
     };
   }
 

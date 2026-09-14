@@ -1,10 +1,11 @@
 import { catalogService } from '../services/catalogService.js';
 import { proxyService } from '../services/proxyService.js';
+import { autoUpdater } from '../services/autoUpdater.js';
 
 export default async function apiRoutes(fastify, options) {
   // 1. 获取基本信息与北京时间更新时间
   fastify.get('/info', async (request, reply) => {
-    return catalogService.getInfo();
+    return catalogService.getInfo(autoUpdater.getStatus());
   });
 
   // 2. 搜索或获取英雄列表 (用于输入框下拉联想)
@@ -76,18 +77,6 @@ export default async function apiRoutes(fastify, options) {
     } catch (err) {
       reply.status(404);
       return { error: err.message };
-    }
-  });
-
-  // 7. 同步/检查更新
-  fastify.post('/sync', async (request, reply) => {
-    try {
-      const info = await catalogService.syncCatalog();
-      return { success: true, message: '数据同步成功', info };
-    } catch (err) {
-      request.log.error(err);
-      reply.status(500);
-      return { success: false, error: err.message || '数据同步失败' };
     }
   });
 }

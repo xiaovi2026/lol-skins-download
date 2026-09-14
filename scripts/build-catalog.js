@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pinyin } from 'pinyin-pro';
+import { getLatestDdragonVersion } from '../src/services/ddragon.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -185,15 +186,17 @@ export async function buildCatalog() {
     throw err;
   }
 
-  // 3. 获取 DataDragon 英雄列表
-  console.log('📡 [3/4] 获取 DataDragon 英雄官方数据...');
+  // 3. 动态获取 DataDragon 最新版本与英雄列表
+  console.log('📡 [3/4] 动态获取 DataDragon 最新版本号与英雄官方数据...');
+  const ddragonVersion = await getLatestDdragonVersion();
+  console.log(`📌 当前 DataDragon 最新版本: ${ddragonVersion}`);
   let ddragonData = {};
   try {
-    const ddRes = await fetch('https://ddragon.leagueoflegends.com/cdn/16.18.1/data/zh_CN/champion.json');
+    const ddRes = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/zh_CN/champion.json`);
     if (ddRes.ok) {
       const ddJson = await ddRes.json();
       ddragonData = ddJson.data || {};
-      console.log(`✅ 成功获取 DataDragon 英雄数据，共 ${Object.keys(ddragonData).length} 位英雄`);
+      console.log(`✅ 成功获取 DataDragon 英雄数据 (${ddragonVersion})，共 ${Object.keys(ddragonData).length} 位英雄`);
     } else {
       throw new Error(`HTTP ${ddRes.status}`);
     }
@@ -360,7 +363,7 @@ export async function buildCatalog() {
       title: titleZh, // 称号（如 黑暗之女）
       fullName: `${titleZh} ${nameZh}`,
       aliases,
-      avatar: ddChamp.image?.full ? `https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/${ddChamp.image.full}` : '',
+      avatar: ddChamp.image?.full ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${ddChamp.image.full}` : '',
       searchTokens: Array.from(new Set(searchTokens)),
       totalSkins: skins.length,
       totalFiles: skins.reduce((sum, s) => sum + s.files.length, 0),
@@ -373,6 +376,7 @@ export async function buildCatalog() {
 
   const catalog = {
     version: '1.0.0',
+    ddragonVersion,
     generatedAt: new Date().toISOString(),
     lastUpdatedBeijing: commitInfo.dateBeijing,
     commit: commitInfo,

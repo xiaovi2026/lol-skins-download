@@ -58,6 +58,8 @@ async function runTests() {
     assert.ok(data.stats.totalChampions >= 173, '收录英雄数必须 >= 173');
     assert.ok(data.stats.totalSkins > 9000, '收录皮肤数必须 > 9000');
     assert.ok(data.stats.totalFiles > 10000, '收录下载文件数必须 > 10000');
+    assert.ok(data.autoUpdate?.enabled, '后台自动更新必须已启用');
+    assert.strictEqual(data.autoUpdate?.intervalMinutes, 60, '自动更新周期必须为 60 分钟 (1小时)');
   });
 
   // 3. 验证 API: /api/champions 列表与搜索
@@ -142,6 +144,22 @@ async function runTests() {
     assert.ok(html.includes('autocompleteDropdown'), '必须包含下拉联想组件');
     assert.ok(html.includes('lastUpdatedText'), '必须包含最后更新时间展示元素');
     assert.ok(html.includes('skinsGrid'), '必须包含皮肤网格容器');
+    assert.ok(!html.includes('id="refreshBtn"'), '页面不得包含客户端检查更新按钮');
+  });
+
+  // 9. 验证客户端禁止触发同步接口
+  await test('POST /api/sync 应已被移除 (禁止客户端触发更新)', async () => {
+    const res = await fetch(`${BASE_URL}/api/sync`, { method: 'POST' });
+    assert.strictEqual(res.status, 404, 'POST /api/sync 接口应返回 404 Not Found');
+  });
+
+  // 10. 验证 DataDragon 动态版本获取
+  await test('动态解析 Riot Data Dragon 官方最新版本号', async () => {
+    const { getLatestDdragonVersion } = await import('../src/services/ddragon.js');
+    const version = await getLatestDdragonVersion();
+    assert.ok(typeof version === 'string' && version.length > 0, '版本号必须为非空字符串');
+    assert.match(version, /^\d+\.\d+\.\d+$/, '版本号格式必须符合 X.Y.Z');
+    console.log(`   [当前解析到的官方最新版本: ${version}]`);
   });
 
   console.log(`\n================================`);
