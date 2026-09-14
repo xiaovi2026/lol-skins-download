@@ -35,7 +35,9 @@ export default async function statsRoutes(fastify, options) {
   // 2. 代理转发打点数据至 u.xiaovi.de/api/send
   fastify.post('/api/send', async (request, reply) => {
     try {
-      const clientIp = request.headers['x-forwarded-for'] || request.ip;
+      const clientIp = request.headers['cf-connecting-ip'] ||
+        request.headers['x-real-ip'] ||
+        (request.headers['x-forwarded-for'] ? request.headers['x-forwarded-for'].split(',')[0].trim() : request.ip);
       const userAgent = request.headers['user-agent'] || '';
 
       const res = await fetch('https://u.xiaovi.de/api/send', {
@@ -43,7 +45,9 @@ export default async function statsRoutes(fastify, options) {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': userAgent,
-          'X-Forwarded-For': clientIp
+          'X-Forwarded-For': clientIp,
+          'X-Real-IP': clientIp,
+          'CF-Connecting-IP': clientIp
         },
         body: JSON.stringify(request.body)
       });

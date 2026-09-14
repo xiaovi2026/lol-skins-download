@@ -40,7 +40,7 @@ async function runTests() {
     assert.strictEqual(scriptSrcMatches.length, 0, `index.html 中不得包含外部 http/https script: ${scriptSrcMatches.join(', ')}`);
     assert.ok(html.includes('/stats/script.js'), '必须包含同源反代统计脚本 /stats/script.js');
     assert.ok(html.includes('data-website-id="2e1dbf68-10c3-4605-8b98-d9da96a655e3"'), '必须包含用户 website-id');
-    assert.ok(html.includes('data-host-url="/stats"'), '必须包含同源 host-url 配置');
+    assert.ok(html.includes('data-host-url="https://u.xiaovi.de"'), '必须包含直连 host-url 配置以保证地理位置识别准确');
     assert.ok(html.includes('rel="icon"'), '必须包含网站图标 link');
 
     // 检查 CSS 中不得有 @import url(http...)

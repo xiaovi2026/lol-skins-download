@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
+  trustProxy: true
 });
 
 // 允许跨域（方便开发与多端口访问）
