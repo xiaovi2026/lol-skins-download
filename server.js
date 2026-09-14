@@ -20,6 +20,13 @@ await fastify.register(fastifyCors, {
   origin: true
 });
 
+// 全局安全响应头
+fastify.addHook('onSend', async (request, reply) => {
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('X-Frame-Options', 'SAMEORIGIN');
+  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
 // 注册静态文件服务 (自包含的前端页面与样式)
 await fastify.register(fastifyStatic, {
   root: PUBLIC_DIR,

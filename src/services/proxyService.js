@@ -23,9 +23,17 @@ class ProxyService {
    * 代理并缓存英雄头像 (带 ddragonVersion 版本号隔离，版本升级自动失效)
    */
   async getChampionIcon(champKey) {
+    if (!champKey || !/^\d+$/.test(String(champKey))) {
+      const err = new Error('英雄编号格式错误');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const champ = catalogService.getChampionByKey(champKey);
     if (!champ) {
-      throw new Error(`未找到英雄 #${champKey}`);
+      const err = new Error(`未找到英雄 #${champKey}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     const ddragonVersion = await getLatestDdragonVersion();
@@ -59,9 +67,17 @@ class ProxyService {
    * 代理并缓存皮肤预览立绘图/加载图
    */
   async getSkinImage(champKey, skinId) {
+    if (!/^\d+$/.test(String(champKey)) || !/^\d+$/.test(String(skinId))) {
+      const err = new Error('参数格式错误');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const champ = catalogService.getChampionByKey(champKey);
     if (!champ) {
-      throw new Error(`未找到英雄 #${champKey}`);
+      const err = new Error(`未找到英雄 #${champKey}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     const skin = champ.skins?.find(s => s.id === String(skinId));
@@ -153,24 +169,35 @@ class ProxyService {
    * 代理并下载皮肤 .fantome / .zip 文件 (带 Git Blob SHA 变更精准感知与自动重拉)
    */
   async getSkinFile(repoPath) {
-    // 安全校验：禁止跨目录路径穿越
     if (!repoPath || typeof repoPath !== 'string') {
-      throw new Error('缺少文件路径参数');
-    }
-    const cleanPath = path.normalize(repoPath).replace(/^(\.\.[\/\\])+/, '');
-    if (!cleanPath.startsWith('skins') && !cleanPath.startsWith('classic')) {
-      throw new Error('非法的文件路径');
+      const err = new Error('缺少文件路径参数');
+      err.statusCode = 400;
+      throw err;
     }
 
-    const localFilePath = path.join(SKINS_FILE_CACHE_DIR, cleanPath);
-    const filename = path.basename(cleanPath);
-    const standardPath = cleanPath.replace(/\\/g, '/');
+    // 统一转换为正斜杠并去除相对路径头部
+    const standardPath = path.normalize(repoPath).replace(/\\/g, '/').replace(/^(\.\.\/)+/, '');
 
-    // 获取 catalog 记录的远端预期 SHA 与文件体积
+    // 1. 严格白名单校验：必须是 catalogService 已索引的合法皮肤文件，彻底杜绝任意文件读取与非预期目录操作
     const fileMeta = catalogService.getFileMeta(standardPath);
+    if (!fileMeta) {
+      const err = new Error('未找到指定的皮肤文件或路径非法');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // 2. 路径穿越安全防御：解析绝对路径，确保严格限制在 SKINS_FILE_CACHE_DIR 内部
+    const localFilePath = path.resolve(SKINS_FILE_CACHE_DIR, standardPath);
+    if (!localFilePath.startsWith(SKINS_FILE_CACHE_DIR + path.sep)) {
+      const err = new Error('非法的文件路径');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const filename = path.basename(standardPath);
     const expectedSha = fileMeta?.sha;
 
-    if (fs.existsSync(localFilePath)) {
+    if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
       const stat = fs.statSync(localFilePath);
 
       // 如果有远端预期 SHA，通过 Git Blob 算法比对本地文件

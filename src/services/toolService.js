@@ -119,12 +119,27 @@ class ToolService {
 
     // 安全校验防穿越
     const cleanFilename = path.basename(filename);
+
+    // 严格白名单校验：只允许下载该 Release 中真实存在的发布资产
+    const targetAsset = release.assets?.find(a => a.name === cleanFilename);
+    if (!targetAsset) {
+      const err = new Error(`指定的发布资产不存在: ${cleanFilename}`);
+      err.statusCode = 404;
+      throw err;
+    }
+
     const versionDir = path.join(CACHE_DIR, release.tag || 'latest');
     fs.mkdirSync(versionDir, { recursive: true });
-    const localFilePath = path.join(versionDir, cleanFilename);
+    const localFilePath = path.resolve(versionDir, cleanFilename);
+
+    if (!localFilePath.startsWith(versionDir + path.sep)) {
+      const err = new Error('非法的文件路径');
+      err.statusCode = 400;
+      throw err;
+    }
 
     // 检查本地磁盘缓存
-    if (fs.existsSync(localFilePath)) {
+    if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
       const stat = fs.statSync(localFilePath);
       console.log(`💾 [ToolService] 命中本地磁盘缓存: ${cleanFilename} (${stat.size} bytes)`);
       return {

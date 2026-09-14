@@ -207,6 +207,36 @@ async function runTests() {
     assert.ok(buf.byteLength > 100, '下载内容体积应 > 100 bytes');
   });
 
+  // 14. 验证全局安全响应头与参数格式防护
+  await test('安全响应头与非法参数格式防御校验', async () => {
+    const res = await fetch(`${BASE_URL}/api/info`);
+    assert.strictEqual(res.headers.get('x-content-type-options'), 'nosniff', '必须包含 nosniff 头');
+    assert.strictEqual(res.headers.get('x-frame-options'), 'SAMEORIGIN', '必须包含 SAMEORIGIN 头');
+
+    // 非法英雄参数
+    const resBadKey = await fetch(`${BASE_URL}/api/champions/abc`);
+    assert.strictEqual(resBadKey.status, 400, '非纯数字英雄编号应返回 400 Bad Request');
+
+    // 非法皮肤立绘参数
+    const resBadSkin = await fetch(`${BASE_URL}/api/proxy/skin-image/1/bad_skin`);
+    assert.strictEqual(resBadSkin.status, 400, '非纯数字皮肤编号应返回 400 Bad Request');
+  });
+
+  // 15. 验证严格白名单校验与路径穿越防御
+  await test('严格文件白名单校验与防路径穿越测试', async () => {
+    // 尝试传入目录路径
+    const resDir = await fetch(`${BASE_URL}/api/skins/download?path=skins`);
+    assert.strictEqual(resDir.status, 404, '请求目录应被白名单拒绝返回 404，不得返回 500 EISDIR');
+
+    // 尝试路径穿越
+    const resTraversal = await fetch(`${BASE_URL}/api/skins/download?path=skins/../../package.json`);
+    assert.strictEqual(resTraversal.status, 404, '路径穿越请求应被拒绝返回 404');
+
+    // 尝试伪造不存在的工具发布资产
+    const resEvilTool = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=evil_malware.exe`);
+    assert.strictEqual(resEvilTool.status, 404, '非 Release 发布资产应直接返回 404，避免向 GitHub 盲目发包');
+  });
+
   console.log(`\n================================`);
   console.log(`🎯 测试结果: ${passed} 项通过, ${failed} 项失败`);
   console.log(`================================\n`);
