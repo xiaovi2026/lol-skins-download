@@ -37,9 +37,29 @@ await fastify.register(fastifyStatic, {
 // 注册 API 路由
 await fastify.register(apiRoutes, { prefix: '/api' });
 
-// 启动服务
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const HOST = process.env.HOST || '0.0.0.0';
+// 解析命令行参数 (--host, --port, --local)
+const args = process.argv.slice(2);
+let cliHost = null;
+let cliPort = null;
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === '--local') {
+    cliHost = '127.0.0.1';
+  } else if (arg === '--host' && args[i + 1]) {
+    cliHost = args[++i];
+  } else if (arg.startsWith('--host=')) {
+    cliHost = arg.split('=')[1];
+  } else if (arg === '--port' && args[i + 1]) {
+    cliPort = args[++i];
+  } else if (arg.startsWith('--port=')) {
+    cliPort = arg.split('=')[1];
+  }
+}
+
+// 启动服务：默认仅绑定 127.0.0.1 本地回环地址，禁止局域网未授权访问
+const PORT = parseInt(cliPort || process.env.PORT || '3000', 10);
+const HOST = cliHost || process.env.HOST || '127.0.0.1';
 
 try {
   await fastify.listen({ port: PORT, host: HOST });
@@ -48,12 +68,12 @@ try {
   autoUpdater.start(60 * 60 * 1000);
 
   const info = catalogService.getInfo();
+  const isLocalOnly = HOST === '127.0.0.1' || HOST === 'localhost';
   console.log(`
 ======================================================
   ⚔️  英雄联盟皮肤查询与下载 Web 服务已成功启动！
   ----------------------------------------------------
-  🌐 本地访问地址: http://localhost:${PORT}
-  🌐 局域网访问:   http://127.0.0.1:${PORT}
+  🌐 访问地址:     http://${HOST}:${PORT} (${isLocalOnly ? '🔒 仅本机 127.0.0.1 访问' : '🌐 局域网可访问'})
   🕒 资源更新时间: ${info.lastUpdatedBeijing} (北京时间)
   📊 收录英雄总数: ${info.stats.totalChampions} 位
   🎨 收录皮肤总数: ${info.stats.totalSkins} 款
