@@ -220,7 +220,7 @@ class ProxyService {
               cached: true
             };
           } else {
-            console.log(`🔄 [ProxyService] 检测到文件在源仓库有更新 (本地SHA: ${localSha.slice(0, 7)} != 远端SHA: ${expectedSha.slice(0, 7)})，清理旧缓存并重新拉取: ${cleanPath}`);
+            console.log(`🔄 [ProxyService] 检测到文件在源仓库有更新 (本地SHA: ${localSha.slice(0, 7)} != 远端SHA: ${expectedSha.slice(0, 7)})，清理旧缓存并重新拉取: ${standardPath}`);
             try {
               fs.unlinkSync(localFilePath);
             } catch (e) {}
