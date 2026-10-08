@@ -255,6 +255,7 @@ export async function buildCatalog() {
       } else if (filename.endsWith('.fantome') || filename.endsWith('.zip')) {
         item.files.push({
           path: p,
+          rawUrl: `https://raw.githubusercontent.com/Alban1911/LeagueSkins/main/${p}`,
           filename,
           size: blob.size,
           sha: blob.sha,
@@ -277,6 +278,7 @@ export async function buildCatalog() {
       } else if (filename.endsWith('.fantome') || filename.endsWith('.zip')) {
         item.files.push({
           path: p,
+          rawUrl: `https://raw.githubusercontent.com/Alban1911/LeagueSkins/main/${p}`,
           filename,
           size: blob.size,
           sha: blob.sha,

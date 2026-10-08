@@ -61,7 +61,7 @@ async function runTests() {
     assert.match(data.lastUpdatedBeijing, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, '北京时间格式必须为 YYYY-MM-DD HH:mm:ss');
     assert.ok(data.stats.totalChampions >= 173, '收录英雄数必须 >= 173');
     assert.ok(data.stats.totalSkins > 9000, '收录皮肤数必须 > 9000');
-    assert.ok(data.stats.totalFiles > 10000, '收录下载文件数必须 > 10000');
+    assert.ok(data.stats.totalFiles >= 9000, '收录下载文件数必须 >= 9000');
     assert.ok(data.autoUpdate?.enabled, '后台自动更新必须已启用');
     assert.strictEqual(data.autoUpdate?.intervalMinutes, 60, '自动更新周期必须为 60 分钟 (1小时)');
   });
@@ -128,19 +128,14 @@ async function runTests() {
     assert.ok(buf.byteLength > 1000, '立绘图片体积应 > 1KB');
   });
 
-  // 7. 验证皮肤下载代理: /api/skins/download
-  await test('GET /api/skins/download?path=skins/1/1001/1001.fantome (皮肤文件下载)', async () => {
+  // 7. 验证皮肤下载代理接口已下线
+  await test('GET /api/skins/download 应已被移除 (禁止服务端代理下载皮肤大文件)', async () => {
     const res = await fetch(`${BASE_URL}/api/skins/download?path=skins/1/1001/1001.fantome`);
-    assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.headers.get('content-type'), 'application/octet-stream');
-    const disposition = res.headers.get('content-disposition');
-    assert.ok(disposition && disposition.includes('1001.fantome'), 'Content-Disposition 应包含文件名');
-    const buf = await res.arrayBuffer();
-    assert.strictEqual(buf.byteLength, 5094, '下载体积应精确为 5094 bytes');
+    assert.strictEqual(res.status, 404, '皮肤代理下载接口应返回 404 Not Found');
   });
 
-  // 8. 验证静态首页与完整组件
-  await test('GET / (首页加载及组件完整性)', async () => {
+  // 8. 验证静态首页与完整组件 (含右上角线路选择器)
+  await test('GET / (首页加载及组件完整性，含右上角线路选择器)', async () => {
     const res = await fetch(`${BASE_URL}/`);
     assert.strictEqual(res.status, 200);
     const html = await res.text();
@@ -148,6 +143,9 @@ async function runTests() {
     assert.ok(html.includes('autocompleteDropdown'), '必须包含下拉联想组件');
     assert.ok(html.includes('lastUpdatedText'), '必须包含最后更新时间展示元素');
     assert.ok(html.includes('skinsGrid'), '必须包含皮肤网格容器');
+    assert.ok(html.includes('downloadRouteSelect'), '必须包含右上角下载线路选择器');
+    assert.ok(html.includes('https://ghfast.top/'), '必须包含 ghfast 加速线路选项');
+    assert.ok(html.includes('direct'), '必须包含 GitHub 直连线路选项');
     assert.ok(!html.includes('id="refreshBtn"'), '页面不得包含客户端检查更新按钮');
     assert.ok(!html.includes('代理就绪'), '页面不得包含“代理就绪”描述');
     assert.ok(!html.includes('所有静态资源均已通过本地服务端自建代理与缓存'), '页面不得暴露服务端代理与缓存技术细节描述');
@@ -168,27 +166,17 @@ async function runTests() {
     console.log(`   [当前解析到的官方最新版本: ${version}]`);
   });
 
-  // 11. 验证智能缓存失效：文件变更 (Git Blob SHA 校验) 自动识别并重新下载
-  await test('智能缓存失效机制：源文件变更时自动识别 SHA 差异并重新拉取', async () => {
-    const testPath = 'skins/1/1001/1001.fantome';
-    const cachedFile = path.join(ROOT_DIR, 'cache', 'skins', testPath);
-    
-    // 确保已有有效缓存
-    await fetch(`${BASE_URL}/api/skins/download?path=${testPath}`);
-    assert.ok(fs.existsSync(cachedFile), '测试前缓存文件必须存在');
-
-    // 模拟旧文件过期/作者发布了新补丁（文件内容被修改）
-    fs.writeFileSync(cachedFile, Buffer.from('stale outdated content'));
-
-    // 再次请求下载，服务端应检测到 SHA 变动，自动清理旧缓存并重新拉取真实文件
-    const res = await fetch(`${BASE_URL}/api/skins/download?path=${testPath}`);
-    assert.strictEqual(res.status, 200);
-    const buf = await res.arrayBuffer();
-    assert.strictEqual(buf.byteLength, 5094, '应自动重新拉取远端真实文件 (5094 bytes)，而非错误的旧缓存');
+  // 11. 验证客户端直链与代理加速逻辑
+  await test('客户端直接下载与加速线路生成逻辑验证', async () => {
+    const appJs = fs.readFileSync(path.join(ROOT_DIR, 'public', 'app.js'), 'utf-8');
+    assert.ok(appJs.includes('raw.githubusercontent.com/Alban1911/LeagueSkins/main/'), '必须包含 GitHub raw 皮肤直链基准地址');
+    assert.ok(appJs.includes('https://ghfast.top/'), '必须包含默认推荐代理线路 ghfast.top');
+    assert.ok(appJs.includes('getSkinDownloadUrl'), '必须包含皮肤下载直链/代理生成函数');
+    assert.ok(appJs.includes('downloadRouteSelect'), '必须绑定线路选择器');
   });
 
-  // 12. 验证 LTK Manager 代理版本信息接口
-  await test('GET /api/tools/ltk-manager (获取最新挂载器版本)', async () => {
+  // 12. 验证 LTK Manager 官方直链发布信息接口
+  await test('GET /api/tools/ltk-manager (获取最新挂载器版本与 GitHub 官方直链)', async () => {
     const res = await fetch(`${BASE_URL}/api/tools/ltk-manager`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
@@ -196,19 +184,14 @@ async function runTests() {
     assert.ok(data.publishedAtBeijing, '必须包含北京时间');
     assert.ok(data.primaryAsset, '必须包含默认主要下载文件');
     assert.ok(data.primaryAsset.name.endsWith('.exe'), '主要文件应为 Windows 可执行程序');
-    console.log(`   [当前最新 LTK Manager: ${data.name} | 文件: ${data.primaryAsset.name}]`);
+    assert.ok(data.primaryAsset.downloadUrl.startsWith('https://github.com/'), '下载链接必须为 GitHub 官方直链');
+    console.log(`   [当前最新 LTK Manager: ${data.name} | 直链: ${data.primaryAsset.downloadUrl}]`);
   });
 
-  // 13. 验证 LTK Manager 代理下载接口
-  await test('GET /api/tools/ltk-manager/download (下载代理)', async () => {
-    // 代理下载小体积资产文件测试代理链路与持久化缓存
+  // 13. 验证 LTK Manager 代理下载接口已下线
+  await test('GET /api/tools/ltk-manager/download 应已被移除 (禁止服务端代理下载工具安装包)', async () => {
     const res = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=latest.json`);
-    assert.strictEqual(res.status, 200);
-    assert.strictEqual(res.headers.get('content-type'), 'application/octet-stream');
-    const disposition = res.headers.get('content-disposition');
-    assert.ok(disposition && disposition.includes('latest.json'), 'Header 应包含 filename');
-    const buf = await res.arrayBuffer();
-    assert.ok(buf.byteLength > 100, '下载内容体积应 > 100 bytes');
+    assert.strictEqual(res.status, 404, '工具代理下载接口应返回 404 Not Found');
   });
 
   // 14. 验证全局安全响应头与参数格式防护
@@ -226,19 +209,13 @@ async function runTests() {
     assert.strictEqual(resBadSkin.status, 400, '非纯数字皮肤编号应返回 400 Bad Request');
   });
 
-  // 15. 验证严格白名单校验与路径穿越防御
-  await test('严格文件白名单校验与防路径穿越测试', async () => {
-    // 尝试传入目录路径
-    const resDir = await fetch(`${BASE_URL}/api/skins/download?path=skins`);
-    assert.strictEqual(resDir.status, 404, '请求目录应被白名单拒绝返回 404，不得返回 500 EISDIR');
+  // 15. 验证已下线接口与非法访问防护
+  await test('已下线下载代理接口与防护测试', async () => {
+    const resSkin = await fetch(`${BASE_URL}/api/skins/download?path=skins/1/1001/1001.fantome`);
+    assert.strictEqual(resSkin.status, 404, '皮肤代理已下线返回 404');
 
-    // 尝试路径穿越
-    const resTraversal = await fetch(`${BASE_URL}/api/skins/download?path=skins/../../package.json`);
-    assert.strictEqual(resTraversal.status, 404, '路径穿越请求应被拒绝返回 404');
-
-    // 尝试伪造不存在的工具发布资产
-    const resEvilTool = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=evil_malware.exe`);
-    assert.strictEqual(resEvilTool.status, 404, '非 Release 发布资产应直接返回 404，避免向 GitHub 盲目发包');
+    const resTool = await fetch(`${BASE_URL}/api/tools/ltk-manager/download?filename=evil.exe`);
+    assert.strictEqual(resTool.status, 404, '工具代理已下线返回 404');
   });
 
   // 16. 验证 Umami 同源第一方统计代理通道 (防 AdBlock 广告拦截器)

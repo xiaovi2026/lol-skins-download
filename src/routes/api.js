@@ -37,32 +37,7 @@ export default async function apiRoutes(fastify, options) {
     return champ;
   });
 
-  // 4. 皮肤文件代理下载 (严格白名单校验 + 路径安全校验 + 错误脱敏)
-  fastify.get('/skins/download', async (request, reply) => {
-    const { path: filePath } = request.query;
-    if (!filePath) {
-      reply.status(400);
-      return { error: '缺少 path 参数' };
-    }
-
-    try {
-      const fileData = await proxyService.getSkinFile(filePath);
-      reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(fileData.filename)}"`);
-      if (fileData.size) {
-        reply.header('Content-Length', fileData.size);
-      }
-      return reply.send(fileData.stream);
-    } catch (err) {
-      request.log.error(err);
-      const status = err.statusCode || 500;
-      reply.status(status);
-      const safeMsg = status < 500 ? err.message : '皮肤文件下载失败';
-      return { error: safeMsg };
-    }
-  });
-
-  // 5. 代理英雄头像 (参数校验 + 错误脱敏)
+  // 4. 代理英雄头像 (参数校验 + 错误脱敏)
   fastify.get('/proxy/champion-icon/:key', async (request, reply) => {
     const { key } = request.params;
     try {
@@ -92,7 +67,7 @@ export default async function apiRoutes(fastify, options) {
     }
   });
 
-  // 7. 获取最新版本 LTK Manager 挂载工具发布信息
+  // 6. 获取最新版本 LTK Manager 挂载工具发布信息 (官方直链)
   fastify.get('/tools/ltk-manager', async (request, reply) => {
     try {
       const release = await toolService.getLatestRelease();
@@ -100,26 +75,6 @@ export default async function apiRoutes(fastify, options) {
     } catch (err) {
       reply.status(500);
       return { error: '获取 LTK Manager 版本失败' };
-    }
-  });
-
-  // 8. 代理下载 LTK Manager 安装包/资产文件 (严格资产白名单校验 + 错误脱敏)
-  fastify.get('/tools/ltk-manager/download', async (request, reply) => {
-    const { filename } = request.query;
-    try {
-      const asset = await toolService.downloadAsset(filename);
-      reply.header('Content-Type', 'application/octet-stream');
-      reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(asset.filename)}"`);
-      if (asset.size) {
-        reply.header('Content-Length', asset.size);
-      }
-      return reply.send(asset.stream);
-    } catch (err) {
-      request.log.error(err);
-      const status = err.statusCode || 500;
-      reply.status(status);
-      const safeMsg = status < 500 ? err.message : '下载 LTK Manager 失败';
-      return { error: safeMsg };
     }
   });
 }

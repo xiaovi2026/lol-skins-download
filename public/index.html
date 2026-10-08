@@ -47,7 +47,24 @@
           </div>
         </div>
 
-        <a href="/api/tools/ltk-manager/download" class="tool-download-btn" id="ltkDownloadBtn" title="一键下载皮肤挂载管理工具 LTK Manager 最新版" download>
+        <!-- 下载线路选择器 (直连 / 代理加速) -->
+        <div class="route-select-wrapper" id="routeSelectWrapper" title="切换皮肤与挂载工具下载线路 (直连 / 代理加速)">
+          <div class="route-select-label">
+            <svg class="route-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <span>下载线路:</span>
+          </div>
+          <select id="downloadRouteSelect" class="route-select" aria-label="下载线路选择">
+            <option value="https://ghfast.top/">ghfast 加速 (推荐)</option>
+            <option value="https://gh-proxy.com/">gh-proxy 加速</option>
+            <option value="direct">GitHub 直连</option>
+          </select>
+        </div>
+
+        <a href="https://github.com/LeagueToolkit/ltk-manager/releases/latest" class="tool-download-btn" id="ltkDownloadBtn" title="一键下载皮肤挂载管理工具 LTK Manager 最新版" target="_blank" rel="noopener noreferrer" download>
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>

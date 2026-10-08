@@ -44,12 +44,16 @@ class ToolService {
       const publishedAt = data.published_at || new Date().toISOString();
       const publishedAtBeijing = formatToBeijingTime(publishedAt);
 
-      const assets = (data.assets || []).map(a => ({
-        name: a.name,
-        size: a.size,
-        formattedSize: this.formatFileSize(a.size),
-        downloadUrl: `/api/tools/ltk-manager/download?filename=${encodeURIComponent(a.name)}`
-      }));
+      const assets = (data.assets || []).map(a => {
+        const directUrl = a.browser_download_url || `https://github.com/LeagueToolkit/ltk-manager/releases/download/${tag}/${a.name}`;
+        return {
+          name: a.name,
+          size: a.size,
+          formattedSize: this.formatFileSize(a.size),
+          downloadUrl: directUrl,
+          browserDownloadUrl: directUrl
+        };
+      });
 
       // 默认首选安装包（通常为 Windows x64 setup .exe）
       const primaryAsset = assets.find(a => a.name.endsWith('.exe')) || assets[0] || null;
@@ -81,7 +85,8 @@ class ToolService {
         } catch (e) {}
       }
 
-      // 兜底静态数据
+      // 兜底静态数据 (GitHub 直连下载)
+      const fallbackUrl = 'https://github.com/LeagueToolkit/ltk-manager/releases/download/v1.19.3/LTK.Manager_1.19.3_x64-setup.exe';
       return {
         repo: 'LeagueToolkit/ltk-manager',
         tag: 'v1.19.3',
@@ -92,92 +97,20 @@ class ToolService {
           name: 'LTK.Manager_1.19.3_x64-setup.exe',
           size: 15383016,
           formattedSize: '14.7 MB',
-          downloadUrl: '/api/tools/ltk-manager/download?filename=LTK.Manager_1.19.3_x64-setup.exe'
+          downloadUrl: fallbackUrl,
+          browserDownloadUrl: fallbackUrl
         },
         assets: [
           {
             name: 'LTK.Manager_1.19.3_x64-setup.exe',
             size: 15383016,
             formattedSize: '14.7 MB',
-            downloadUrl: '/api/tools/ltk-manager/download?filename=LTK.Manager_1.19.3_x64-setup.exe'
+            downloadUrl: fallbackUrl,
+            browserDownloadUrl: fallbackUrl
           }
         ]
       };
     }
-  }
-
-  /**
-   * 代理下载 LTK Manager 发布资源
-   */
-  async downloadAsset(requestedFilename = null) {
-    const release = await this.getLatestRelease();
-    const filename = requestedFilename || release.primaryAsset?.name;
-
-    if (!filename) {
-      throw new Error('未指定要下载的文件名');
-    }
-
-    // 安全校验防穿越
-    const cleanFilename = path.basename(filename);
-
-    // 严格白名单校验：只允许下载该 Release 中真实存在的发布资产
-    const targetAsset = release.assets?.find(a => a.name === cleanFilename);
-    if (!targetAsset) {
-      const err = new Error(`指定的发布资产不存在: ${cleanFilename}`);
-      err.statusCode = 404;
-      throw err;
-    }
-
-    const versionDir = path.join(CACHE_DIR, release.tag || 'latest');
-    fs.mkdirSync(versionDir, { recursive: true });
-    const localFilePath = path.resolve(versionDir, cleanFilename);
-
-    if (!localFilePath.startsWith(versionDir + path.sep)) {
-      const err = new Error('非法的文件路径');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    // 检查本地磁盘缓存
-    if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
-      const stat = fs.statSync(localFilePath);
-      console.log(`💾 [ToolService] 命中本地磁盘缓存: ${cleanFilename} (${stat.size} bytes)`);
-      return {
-        stream: fs.createReadStream(localFilePath),
-        filename: cleanFilename,
-        size: stat.size,
-        cached: true
-      };
-    }
-
-    // 从 GitHub Releases 下载
-    const rawDownloadUrl = `https://github.com/LeagueToolkit/ltk-manager/releases/download/${release.tag}/${cleanFilename}`;
-    console.log(`📥 [ToolService] 正在从 GitHub 代理下载 LTK Manager: ${rawDownloadUrl}`);
-
-    const res = await fetch(rawDownloadUrl, {
-      headers: {
-        'User-Agent': 'Fastify-LOL-Skins-ToolService'
-      },
-      redirect: 'follow'
-    });
-
-    if (!res.ok) {
-      throw new Error(`下载 LTK Manager 失败: HTTP ${res.status}`);
-    }
-
-    const arrayBuf = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuf);
-
-    // 写入本地持久化磁盘
-    fs.writeFileSync(localFilePath, buffer);
-    console.log(`💾 [ToolService] 文件已持久化至本地: ${localFilePath} (${buffer.length} bytes)`);
-
-    return {
-      stream: fs.createReadStream(localFilePath),
-      filename: cleanFilename,
-      size: buffer.length,
-      cached: false
-    };
   }
 
   formatFileSize(bytes) {

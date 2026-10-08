@@ -11,12 +11,10 @@ const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const CACHE_DIR = path.join(ROOT_DIR, 'cache');
 const ICONS_CACHE_DIR = path.join(CACHE_DIR, 'images', 'icons');
 const SKINS_IMAGE_CACHE_DIR = path.join(CACHE_DIR, 'images', 'skins');
-const SKINS_FILE_CACHE_DIR = path.join(CACHE_DIR, 'skins');
 
-// 确保缓存目录存在
+// 确保图片缓存目录存在
 fs.mkdirSync(ICONS_CACHE_DIR, { recursive: true });
 fs.mkdirSync(SKINS_IMAGE_CACHE_DIR, { recursive: true });
-fs.mkdirSync(SKINS_FILE_CACHE_DIR, { recursive: true });
 
 class ProxyService {
   /**
@@ -163,111 +161,6 @@ class ProxyService {
 
     // 5. 终极回退：英雄头像
     return this.getChampionIcon(champKey);
-  }
-
-  /**
-   * 代理并下载皮肤 .fantome / .zip 文件 (带 Git Blob SHA 变更精准感知与自动重拉)
-   */
-  async getSkinFile(repoPath) {
-    if (!repoPath || typeof repoPath !== 'string') {
-      const err = new Error('缺少文件路径参数');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    // 统一转换为正斜杠并去除相对路径头部
-    const standardPath = path.normalize(repoPath).replace(/\\/g, '/').replace(/^(\.\.\/)+/, '');
-
-    // 1. 严格白名单校验：必须是 catalogService 已索引的合法皮肤文件，彻底杜绝任意文件读取与非预期目录操作
-    const fileMeta = catalogService.getFileMeta(standardPath);
-    if (!fileMeta) {
-      const err = new Error('未找到指定的皮肤文件或路径非法');
-      err.statusCode = 404;
-      throw err;
-    }
-
-    // 2. 路径穿越安全防御：解析绝对路径，确保严格限制在 SKINS_FILE_CACHE_DIR 内部
-    const localFilePath = path.resolve(SKINS_FILE_CACHE_DIR, standardPath);
-    if (!localFilePath.startsWith(SKINS_FILE_CACHE_DIR + path.sep)) {
-      const err = new Error('非法的文件路径');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const filename = path.basename(standardPath);
-    const expectedSha = fileMeta?.sha;
-
-    if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
-      const stat = fs.statSync(localFilePath);
-
-      // 如果有远端预期 SHA，通过 Git Blob 算法比对本地文件
-      if (expectedSha) {
-        try {
-          const buf = fs.readFileSync(localFilePath);
-          // Git Blob SHA 格式: sha1("blob " + size + "\0" + content)
-          const localSha = crypto
-            .createHash('sha1')
-            .update(Buffer.from(`blob ${buf.length}\0`))
-            .update(buf)
-            .digest('hex');
-
-          if (localSha === expectedSha) {
-            // SHA 完全一致，本地缓存未过时，直接返回
-            return {
-              stream: fs.createReadStream(localFilePath),
-              filename,
-              size: stat.size,
-              cached: true
-            };
-          } else {
-            console.log(`🔄 [ProxyService] 检测到文件在源仓库有更新 (本地SHA: ${localSha.slice(0, 7)} != 远端SHA: ${expectedSha.slice(0, 7)})，清理旧缓存并重新拉取: ${standardPath}`);
-            try {
-              fs.unlinkSync(localFilePath);
-            } catch (e) {}
-          }
-        } catch (err) {
-          console.warn(`⚠️ [ProxyService] 校验文件 SHA 失败: ${err.message}`);
-        }
-      } else {
-        // 无远端 SHA 记录时，复用现有本地缓存
-        return {
-          stream: fs.createReadStream(localFilePath),
-          filename,
-          size: stat.size,
-          cached: true
-        };
-      }
-    }
-
-    // 从 GitHub Alban1911/LeagueSkins 下载最新文件
-    const rawUrl = `https://raw.githubusercontent.com/Alban1911/LeagueSkins/main/${standardPath}`;
-    console.log(`📥 [ProxyService] 正在从 GitHub 拉取最新皮肤文件: ${rawUrl}`);
-
-    const res = await fetch(rawUrl, {
-      headers: {
-        'User-Agent': 'Fastify-LOL-Skins-Proxy'
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error(`从源仓库下载皮肤文件失败: HTTP ${res.status}`);
-    }
-
-    const arrayBuf = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuf);
-
-    // 写入本地持久化缓存
-    fs.mkdirSync(path.dirname(localFilePath), { recursive: true });
-    fs.writeFileSync(localFilePath, buffer);
-
-    console.log(`💾 [ProxyService] 文件已持久化到磁盘: ${localFilePath} (${buffer.length} bytes)`);
-
-    return {
-      stream: fs.createReadStream(localFilePath),
-      filename,
-      size: buffer.length,
-      cached: false
-    };
   }
 }
 

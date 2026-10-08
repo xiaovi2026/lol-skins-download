@@ -6,6 +6,10 @@
 (function () {
   'use strict';
 
+  // 基础常量定义
+  const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/Alban1911/LeagueSkins/main/';
+  const DEFAULT_LTK_URL = 'https://github.com/LeagueToolkit/ltk-manager/releases/latest';
+
   // 全局状态管理
   const state = {
     champions: [],
@@ -14,15 +18,25 @@
     filterType: 'all', // 'all' | 'base' | 'chroma'
     subSearchKeyword: '',
     activeDropdownIndex: -1,
-    isSearching: false
+    isSearching: false,
+    downloadRoute: (function() {
+      try {
+        return localStorage.getItem('lol_skins_download_route') || 'https://ghfast.top/';
+      } catch (e) {
+        return 'https://ghfast.top/';
+      }
+    })(),
+    ltkRawUrl: DEFAULT_LTK_URL
   };
 
   // DOM 元素缓存
   const elements = {
-    // 顶部状态
+    // 顶部状态与线路
     lastUpdatedText: document.getElementById('lastUpdatedText'),
     champCount: document.getElementById('champCount'),
     skinCount: document.getElementById('skinCount'),
+    routeSelect: document.getElementById('downloadRouteSelect'),
+    ltkDownloadBtn: document.getElementById('ltkDownloadBtn'),
 
     // 搜索与下拉
     searchInput: document.getElementById('championSearchInput'),
@@ -54,10 +68,63 @@
   };
 
   /**
+   * 根据当前选中的下载线路转换下载链接 (直连 / 代理加速)
+   */
+  function getFormattedDownloadUrl(rawUrl) {
+    if (!rawUrl) return '';
+    const route = state.downloadRoute;
+    if (!route || route === 'direct') {
+      return rawUrl;
+    }
+    const prefix = route.endsWith('/') ? route : route + '/';
+    return `${prefix}${rawUrl}`;
+  }
+
+  /**
+   * 获取指定皮肤文件的完整下载链接
+   */
+  function getSkinDownloadUrl(filePath) {
+    if (!filePath) return '';
+    const rawUrl = `${GITHUB_RAW_BASE}${filePath}`;
+    return getFormattedDownloadUrl(rawUrl);
+  }
+
+  /**
+   * 更新挂载工具 LTK Manager 的下载链接
+   */
+  function updateLtkDownloadLink() {
+    if (elements.ltkDownloadBtn && state.ltkRawUrl) {
+      elements.ltkDownloadBtn.href = getFormattedDownloadUrl(state.ltkRawUrl);
+    }
+  }
+
+  /**
+   * 线路切换时批量更新当前页面的所有下载链接
+   */
+  function refreshAllDownloadLinks() {
+    updateLtkDownloadLink();
+    if (elements.skinsGrid) {
+      elements.skinsGrid.querySelectorAll('.download-btn[data-path]').forEach(btn => {
+        const filePath = btn.dataset.path;
+        if (filePath) {
+          btn.href = getSkinDownloadUrl(filePath);
+        }
+      });
+      elements.skinsGrid.querySelectorAll('.sub-download-btn[data-path]').forEach(btn => {
+        const filePath = btn.dataset.path;
+        if (filePath) {
+          btn.href = getSkinDownloadUrl(filePath);
+        }
+      });
+    }
+  }
+
+  /**
    * 初始化应用
    */
   async function init() {
     bindEvents();
+    updateLtkDownloadLink();
     await fetchInfo();
     await fetchChampions();
     
@@ -140,12 +207,34 @@
       renderSkins();
     });
 
+    // 下载线路选择器切换
+    if (elements.routeSelect) {
+      elements.routeSelect.value = state.downloadRoute;
+      if (!elements.routeSelect.value) {
+        elements.routeSelect.value = 'https://ghfast.top/';
+        state.downloadRoute = 'https://ghfast.top/';
+      }
+
+      elements.routeSelect.addEventListener('change', (e) => {
+        state.downloadRoute = e.target.value;
+        try {
+          localStorage.setItem('lol_skins_download_route', state.downloadRoute);
+        } catch (err) {}
+
+        refreshAllDownloadLinks();
+
+        const selectedText = e.target.options[e.target.selectedIndex]?.text || state.downloadRoute;
+        showToast(`已切换下载线路: ${selectedText}`, 'info');
+        trackEvent('route_change', { route: state.downloadRoute });
+      });
+    }
+
     // 挂载管理工具下载点击打点
     const ltkBtn = document.getElementById('ltkDownloadBtn');
     if (ltkBtn) {
       ltkBtn.addEventListener('click', () => {
         const ver = document.getElementById('ltkVersionText')?.textContent || 'LTK Manager';
-        trackEvent('tool_download', { tool: 'ltk-manager', version: ver });
+        trackEvent('tool_download', { tool: 'ltk-manager', version: ver, route: state.downloadRoute });
       });
     }
 
@@ -177,7 +266,7 @@
       console.error('获取服务信息失败:', err);
     }
 
-    // 动态获取 LTK Manager 挂载工具最新版本信息
+    // 动态获取 LTK Manager 挂载工具最新版本信息 (GitHub 官方直链)
     try {
       const ltkRes = await fetch('/api/tools/ltk-manager');
       if (ltkRes.ok) {
@@ -187,6 +276,12 @@
         if (ltkTextEl && ltkData.tag) {
           ltkTextEl.textContent = `LTK Manager ${ltkData.tag}`;
         }
+        if (ltkData.primaryAsset?.downloadUrl) {
+          state.ltkRawUrl = ltkData.primaryAsset.downloadUrl;
+        } else if (ltkData.tag) {
+          state.ltkRawUrl = `https://github.com/LeagueToolkit/ltk-manager/releases/download/${ltkData.tag}/LTK.Manager_${ltkData.version || '1.19.3'}_x64-setup.exe`;
+        }
+        updateLtkDownloadLink();
         if (ltkBtnEl && ltkData.primaryAsset) {
           ltkBtnEl.title = `点击下载最新版挂载工具: ${ltkData.primaryAsset.name} (${ltkData.primaryAsset.formattedSize}) | 发布于: ${ltkData.publishedAtBeijing}`;
         }
@@ -508,18 +603,25 @@
         typeClass = 'type-chroma';
       }
 
-      // 下载按钮渲染
+      // 下载按钮渲染 (根据当前选中的线路生成直链或代理链接)
       let downloadButtonHtml = '';
       if (hasFiles) {
+        const downloadUrl = getSkinDownloadUrl(mainFile.path);
         downloadButtonHtml = `
-          <button class="download-btn" data-path="${escapeHtml(mainFile.path)}" data-name="${escapeHtml(skin.name)}">
+          <a href="${escapeHtml(downloadUrl)}" 
+             class="download-btn" 
+             data-path="${escapeHtml(mainFile.path)}" 
+             data-name="${escapeHtml(skin.name)}" 
+             download="${escapeHtml(mainFile.filename)}" 
+             target="_blank" 
+             rel="noopener noreferrer">
             <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
             <span class="btn-text">立即下载 (.fantome)</span>
-          </button>
+          </a>
         `;
       } else {
         downloadButtonHtml = `
@@ -534,7 +636,12 @@
           <div class="extra-files-group">
             <span style="font-size:0.7rem; color:var(--text-dim); margin-right:4px;">备选版本:</span>
             ${skin.files.slice(1).map(f => `
-              <a href="/api/skins/download?path=${encodeURIComponent(f.path)}" class="sub-download-btn" download>
+              <a href="${escapeHtml(getSkinDownloadUrl(f.path))}" 
+                 class="sub-download-btn" 
+                 data-path="${escapeHtml(f.path)}" 
+                 download="${escapeHtml(f.filename)}" 
+                 target="_blank" 
+                 rel="noopener noreferrer">
                 ${f.category === 'classic' ? '经典旧版' : '备选包'} (${formatFileSize(f.size)})
               </a>
             `).join('')}
@@ -571,71 +678,57 @@
       `;
     }).join('');
 
-    // 绑定下载点击动效
+    // 绑定下载点击动效与埋点反馈
     elements.skinsGrid.querySelectorAll('.download-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
+      btn.addEventListener('click', () => {
         const filePath = btn.dataset.path;
         const skinName = btn.dataset.name;
         if (filePath) {
-          triggerDownload(btn, filePath, skinName);
+          triggerDownloadFeedback(btn, filePath, skinName);
         }
+      });
+    });
+
+    elements.skinsGrid.querySelectorAll('.sub-download-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filePath = btn.dataset.path;
+        trackEvent('skin_download_sub', {
+          champion: state.selectedChampion?.name || '',
+          file_path: filePath,
+          route: state.downloadRoute
+        });
       });
     });
   }
 
   /**
-   * 触发文件下载及前端状态反馈
+   * 触发下载点击反馈与状态流转
    */
-  async function triggerDownload(btn, filePath, skinName) {
+  function triggerDownloadFeedback(btn, filePath, skinName) {
     if (btn.classList.contains('downloading')) return;
 
     btn.classList.add('downloading');
     const textSpan = btn.querySelector('.btn-text');
     const originalText = textSpan ? textSpan.textContent : '立即下载 (.fantome)';
-    if (textSpan) textSpan.textContent = '正在下载...';
+    if (textSpan) textSpan.textContent = '已触发下载 ✓';
 
-    try {
-      // 创建隐藏 a 标签触发代理下载
-      const downloadUrl = `/api/skins/download?path=${encodeURIComponent(filePath)}`;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filePath.split('/').pop() || 'skin.fantome';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    trackEvent('skin_download', {
+      champion: state.selectedChampion?.name || '',
+      champion_key: String(state.selectedChampion?.key || ''),
+      skin_name: skinName || '',
+      file_name: filePath ? filePath.split('/').pop() : 'skin.fantome',
+      file_path: filePath,
+      route: state.downloadRoute
+    });
 
-      // 上报核心转化事件：皮肤文件下载
-      trackEvent('skin_download', {
-        champion: state.selectedChampion?.name || '',
-        champion_key: String(state.selectedChampion?.key || ''),
-        skin_name: skinName || '',
-        file_name: filePath.split('/').pop() || 'skin.fantome',
-        file_path: filePath
-      });
+    btn.classList.remove('downloading');
+    btn.classList.add('success');
+    showToast(`已开始下载: ${skinName}`, 'success');
 
-      // 视觉状态变为成功
-      setTimeout(() => {
-        btn.classList.remove('downloading');
-        btn.classList.add('success');
-        if (textSpan) textSpan.textContent = '已触发下载 ✓';
-        showToast(`已开始下载: ${skinName}`, 'success');
-
-        setTimeout(() => {
-          btn.classList.remove('success');
-          if (textSpan) textSpan.textContent = originalText;
-        }, 2500);
-      }, 600);
-    } catch (err) {
-      console.error('下载触发失败:', err);
-      btn.classList.remove('downloading');
-      if (textSpan) textSpan.textContent = '下载失败';
-      showToast('文件下载失败，请重试', 'error');
-
-      setTimeout(() => {
-        if (textSpan) textSpan.textContent = originalText;
-      }, 2000);
-    }
+    setTimeout(() => {
+      btn.classList.remove('success');
+      if (textSpan) textSpan.textContent = originalText;
+    }, 2500);
   }
 
 
